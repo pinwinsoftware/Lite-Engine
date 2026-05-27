@@ -26,8 +26,11 @@ By default, Lite Engine is running in 120x40 mode (characters, not pixels!), but
 # Controls
  
 Left Arrow  = Turn Left
+
 Right Arrow = Turn Right
+
 Up Arrow    = Walk Forward
+
 Down Arrow  = Walk Backward
 
 # Credits
