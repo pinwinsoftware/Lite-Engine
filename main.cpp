@@ -26,10 +26,10 @@
 
     === Controls ===
 
-    Left Arrow  = Turn Left
-    Right Arrow = Turn Right
-    Up Arrow    = Walk Forward
-    Down Arrow  = Walk Backward
+    A     = Walk Forward
+    S     = Walk Backward
+    Mouse = Camera Movement
+    Shift = Sprint
 
     === Credits ===
 
@@ -131,8 +131,14 @@ const char (*map)[MAP_W] = map3;
 int mapWidth = MAP_W;
 int mapHeight = MAP_H;
 
+POINT center;
+
 int main() {
     hideCursor();
+    
+    POINT lastMouse;
+    GetCursorPos(&lastMouse);
+
     int select = 0;
 
     enum GameState {
@@ -274,8 +280,41 @@ int main() {
 
         // === GAME ===
         case RUNNING:
+            POINT mousePos;
+            GetCursorPos(&mousePos);
+
+            int deltaX = mousePos.x - lastMouse.x;
+
+            float mouseSensitivity = 0.10f;
+            angle += deltaX * mouseSensitivity;
+
+            lastMouse = mousePos;
+
+            int screenW = GetSystemMetrics(SM_CXSCREEN);
+            int screenH = GetSystemMetrics(SM_CYSCREEN);
+
+            int border = 10;
+
+            if (mousePos.x <= border) {
+                SetCursorPos(screenW - border - 1, mousePos.y);
+                lastMouse.x = screenW - border - 1;
+            }
+            else if (mousePos.x >= screenW - border) {
+                SetCursorPos(border + 1, mousePos.y);
+                lastMouse.x = border + 1;
+            }
+
             system("color 3f");
+
             float speed = 0.25f;
+
+            bool running = (GetAsyncKeyState(VK_SHIFT) & 0x8000);
+
+            // player running fast
+            if (running) {
+                speed = speed * 2;
+            }
+
             float fov = 60.0f;
             int numRays = screenWidth;
 
@@ -429,7 +468,7 @@ int main() {
             }
 
             // movement
-            if (GetAsyncKeyState(VK_UP) & 0x8000) {
+            if (GetAsyncKeyState('W') & 0x8000) {
                 float newX = x + moveX * speed;
                 float newY = y + moveY * speed;
 
@@ -443,7 +482,7 @@ int main() {
                     y = newY;
                 }
             }
-            if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+            if (GetAsyncKeyState('S') & 0x8000) {
                 float newX = x - moveX * speed;
                 float newY = y - moveY * speed;
 
@@ -457,8 +496,35 @@ int main() {
                     y = newY;
                 }
             }
-            if (GetAsyncKeyState(VK_LEFT) & 0x8000) angle -= 4.f;
-            if (GetAsyncKeyState(VK_RIGHT) & 0x8000) angle += 4.f;
+            if (GetAsyncKeyState('D') & 0x8000) {
+                float newX = x - moveY * speed;
+                float newY = y + moveX * speed;
+
+                // x collision
+                if (map[(int)y][(int)newX] == ' ') {
+                    x = newX;
+                }
+
+                // y collision
+                if (map[(int)newY][(int)x] == ' ') {
+                    y = newY;
+                }
+            }
+
+            if (GetAsyncKeyState('A') & 0x8000) {
+                float newX = x + moveY * speed;
+                float newY = y - moveX * speed;
+
+                // x collision
+                if (map[(int)y][(int)newX] == ' ') {
+                    x = newX;
+                }
+
+                // y collision
+                if (map[(int)newY][(int)x] == ' ') {
+                    y = newY;
+                }
+            }
 
             if (angle < 0.0f) angle += 360.0f;
             if (angle >= 360.0f) angle -= 360.0f;
