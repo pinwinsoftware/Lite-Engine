@@ -33,7 +33,6 @@ Mouse = Camera Movement
 
 Shift = Sprint
 
-
 # Credits
  
 Developed by Larion Naumenko
