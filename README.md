@@ -29,6 +29,10 @@ A     = Walk Forward
 
 S     = Walk Backward
 
+A     = Strafe Left
+
+D     = Strafe Rigfht
+
 Mouse = Camera Movement
 
 Shift = Sprint
