@@ -88,7 +88,7 @@ void collectCoin(int tileX, int tileY)
             entities.end(),
             [tileX, tileY](const Entity& e)
             {
-                return e.type == EntityType::COLLECTABLE &&
+                return e.type == EntityType::COLLECTIBLE &&
                     (int)e.x == tileX &&
                     (int)e.y == tileY;
             }),
