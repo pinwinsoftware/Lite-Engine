@@ -2,7 +2,7 @@
     === Lite Engine ===
 
     Lite Engine - Very Lightweight First-Person Game Engine
-    Version 0.1.2.0
+    Version 0.1.3.0
     Copyright (C) 2026 Pinwin Software
 
     === License ===
@@ -33,6 +33,7 @@
 
     Mouse = Camera Movement
     Shift = Sprint
+    Space = Shoot
 
     === Credits ===
 
@@ -53,6 +54,7 @@
 #include "Menu.h"
 #include "Settings.h"
 #include "Game.h"
+#include "Shoot.h"
 #include "main.h"
 
 using namespace std;
@@ -158,6 +160,7 @@ Map map3_struct = { map3, static_cast<int>(map3.size()) };
 Map* currentMap = &map3_struct;
 
 int main() {
+    LoadSprites();
     hideCursor();
     GetCursorPos(&lastMouse);
 

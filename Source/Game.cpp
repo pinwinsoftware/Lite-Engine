@@ -8,11 +8,19 @@
 
 #include "main.h"
 #include "Entity.h"
+#include "Shoot.h"
 
 std::vector<float> depthBuffer;
 
+int GunFrame = 1;
+int shootTimer = 0;
+
 int coins = 0;
 int totalCoins = 0;
+
+int kills = 0;
+int totalEnemies = 0;
+
 bool gameComplete = false;
 
 char getMapCell(int x, int y)
@@ -31,11 +39,10 @@ void getMapEntities() {
         int rowLen = (int)currentMap->rows[y].size();
         for (int x = 0; x < rowLen; x++) {
             char tile = currentMap->rows[y][x];
-            switch (tile)
-            {
+            switch (tile) {
             case '2':
             {
-                Entity e(EntityType::ENTITY, x + 0.5f, y + 0.5f);
+                Entity e(EntityType::ENEMY, x + 0.5f, y + 0.5f);
                 e.shape = monsterSprite;
                 e.w = 16;
                 e.h = 16;
@@ -53,7 +60,7 @@ void getMapEntities() {
             }
             case '4':
             {
-                Entity e(EntityType::ENTITY, x + 0.5f, y + 0.5f);
+                Entity e(EntityType::ENEMY, x + 0.5f, y + 0.5f);
                 e.shape = trollSprite;
                 e.w = 16;
                 e.h = 13;
@@ -62,7 +69,7 @@ void getMapEntities() {
             }
             case '5':
             {
-                if (coins >= totalCoins) {
+                if (kills >= totalEnemies) {
                     Entity e(EntityType::EXIT, x + 0.5f, y + 0.5f);
                     e.shape = exitSprite;
                     e.w = 26;
@@ -86,8 +93,7 @@ void collectCoin(int tileX, int tileY)
         std::remove_if(
             entities.begin(),
             entities.end(),
-            [tileX, tileY](const Entity& e)
-            {
+            [tileX, tileY](const Entity& e) {
                 return e.type == EntityType::COLLECTIBLE &&
                     (int)e.x == tileX &&
                     (int)e.y == tileY;
@@ -96,7 +102,6 @@ void collectCoin(int tileX, int tileY)
 }
 
 void Game() {
-    // compute once at the top
     float playerRad = angle * 3.14159f / 180.0f;
     float fov = 60.0f;
 
@@ -311,21 +316,19 @@ void Game() {
 
     // player info
     std::string info = "X:" + std::to_string(x) + " Y:" + std::to_string(y) + " A:" + std::to_string(angle);
-    std::string coinsInfo = "C:" + std::to_string(coins) + "/" + std::to_string(totalCoins);
-    std::string allCoinFound = "Congrats! You found all coins";
+    std::string enemiesInfo = "E:" + std::to_string(kills) + "/" + std::to_string(totalEnemies);
+    std::string allEnemiesKilled = "Congrats! You killed all enemies";
     int offset = (int)info.size() + 1;
 
     for (int i = 0; i < (int)info.size() && i < screenWidth; i++)
         screen[0][i] = info[i];
 
-    if (currentMap == &map1_struct) {
-        for (int i = 0; i < (int)coinsInfo.size() && i + offset < screenWidth; i++)
-            screen[0][i + offset] = coinsInfo[i];
-    }
+    for (int i = 0; i < (int)enemiesInfo.size() && i + offset < screenWidth; i++)
+        screen[0][i + offset] = enemiesInfo[i];
 
-    if (coins >= totalCoins && currentMap == &map1_struct) {
-        for (int i = 0; i < (int)allCoinFound.size() && i + offset < screenWidth; i++)
-            screen[0][i + offset] = allCoinFound[i];
+    if (kills >= totalEnemies && currentMap == &map1_struct) {
+        for (int i = 0; i < (int)allEnemiesKilled.size() && i + offset < screenWidth; i++)
+            screen[0][i + offset] = allEnemiesKilled[i];
     }
 
     // movement
@@ -341,7 +344,7 @@ void Game() {
             collectCoin((int)newX, (int)y);
             x = newX;
         }
-        else if (getMapCell((int)newX, (int)y) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)newX, (int)y) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             x = newX;
         }
@@ -354,13 +357,13 @@ void Game() {
             collectCoin((int)x, (int)newY);
             y = newY;
         }
-        else if (getMapCell((int)x, (int)newY) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)x, (int)newY) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             y = newY;
         }
     }
 
-    if (GetAsyncKeyState('P') & 0x8000) {
+    if (GetAsyncKeyState('S') & 0x8000) {
         float newX = x - moveX * speed;
         float newY = y - moveY * speed;
 
@@ -372,7 +375,7 @@ void Game() {
             collectCoin((int)newX, (int)y);
             x = newX;
         }
-        else if (getMapCell((int)newX, (int)y) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)newX, (int)y) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             x = newX;
         }
@@ -385,7 +388,7 @@ void Game() {
             collectCoin((int)x, (int)newY);
             y = newY;
         }
-        else if (getMapCell((int)x, (int)newY) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)x, (int)newY) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             y = newY;
         }
@@ -403,7 +406,7 @@ void Game() {
             collectCoin((int)newX, (int)y);
             x = newX;
         }
-        else if (getMapCell((int)newX, (int)y) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)newX, (int)y) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             x = newX;
         }
@@ -416,7 +419,7 @@ void Game() {
             collectCoin((int)x, (int)newY);
             y = newY;
         }
-        else if (getMapCell((int)x, (int)newY) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)x, (int)newY) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             y = newY;
         }
@@ -434,7 +437,7 @@ void Game() {
             collectCoin((int)newX, (int)y);
             x = newX;
         }
-        else if (getMapCell((int)newX, (int)y) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)newX, (int)y) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             x = newX;
         }
@@ -447,9 +450,26 @@ void Game() {
             collectCoin((int)x, (int)newY);
             y = newY;
         }
-        else if (getMapCell((int)x, (int)newY) == '5' && coins >= totalCoins) {
+        else if (getMapCell((int)x, (int)newY) == '5' && kills >= totalEnemies) {
             gameComplete = true;
             y = newY;
+        }
+    }
+
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+    {
+        if (shootTimer == 0) {
+            Shoot();
+            GunFrame = 2;
+            shootTimer = 5;
+        }
+    }
+
+    if (shootTimer > 0) {
+        shootTimer--;
+
+        if (shootTimer == 0) {
+            GunFrame = 1;
         }
     }
 
@@ -457,7 +477,7 @@ void Game() {
     if (angle >= 360.0f) angle -= 360.0f;
 
     while (gameComplete) {
-        coins = 0;
+        kills = 0;
         system("color 0f");
         system("cls");
         std::cout << "Demo Completed";
@@ -468,6 +488,11 @@ void Game() {
 
     // render buffer
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    if (GunFrame == 1)
+        DrawGunToBuffer(Sprite["GunSprite1"]);
+    else if (GunFrame == 2)
+        DrawGunToBuffer(Sprite["GunSprite2"]);
 
     for (int y = 0; y < screenHeight; y++) {
         DWORD written;
@@ -481,5 +506,6 @@ void Game() {
             &written
         );
     }
+
     Sleep(40);
 }

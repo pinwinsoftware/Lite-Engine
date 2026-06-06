@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <string>
 #include <windows.h>
 
 void positionxy(short x, short y);

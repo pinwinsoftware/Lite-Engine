@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-enum class EntityType { ENTITY, COLLECTIBLE, EXIT };
+enum class EntityType { ENEMY, COLLECTIBLE, EXIT };
 
 struct Entity {
     EntityType type;

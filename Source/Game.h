@@ -3,6 +3,9 @@
 extern int coins;
 extern int totalCoins;
 
+extern int kills;
+extern int totalEnemies;
+
 extern bool gameComplete;
 
 void Game();
