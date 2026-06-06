@@ -1,7 +1,7 @@
 # Lite Engine
  
 Lite Engine - Very Lightweight First-Person Game Engine
-Version 0.1.2.0
+Version 0.1.3.0
 Copyright (C) 2026 Pinwin Software
 
 # License
@@ -36,6 +36,8 @@ D     = Strafe Rigfht
 Mouse = Camera Movement
 
 Shift = Sprint
+
+Space = Shoot
 
 # Credits
  
