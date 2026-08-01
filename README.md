@@ -32,13 +32,19 @@ By default, Lite Engine is running in 120x40 mode (characters, not pixels!), but
 # Controls  
 
 W = Walk Forward
+
 S = Walk Backward
+
 A = Strafe Left
+
 D = Strafe Right
 
 
+
 Mouse = Camera Movement
+
 Shift = Sprint
+
 Space = Shoot
 
 # Credits  
