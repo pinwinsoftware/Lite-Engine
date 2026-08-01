@@ -1,5 +1,6 @@
 #include <cmath>
 
+#include "FindingPath.h"
 #include "Entity.h"
 #include "Game.h"
 #include "main.h"
@@ -81,17 +82,23 @@ void RenderSprite(
     bool flipSprite = sprite.flipSprite;
 
     float spriteDistance = sqrt(dx * dx + dy * dy);
+
     float spriteAngle = atan2(dy, dx) - playerRad;
 
-    while (spriteAngle > 3.14159f) spriteAngle -= 2.0f * 3.14159f;
-    while (spriteAngle < -3.14159f) spriteAngle += 2.0f * 3.14159f;
+    while (spriteAngle > 3.14159f)
+        spriteAngle -= 6.28318f;
+
+    while (spriteAngle < -3.14159f)
+        spriteAngle += 6.28318f;
 
     float fovRad = fov * 3.14159f / 180.0f;
+
+    int spriteScreenX = screenWidth / 2 + (int)(tan(spriteAngle) / tan(fovRad / 2.0f) * screenWidth / 2);
 
     float spriteHalfWidthAngle = atan2(sprite.w / 2.0f, spriteDistance);
 
     if (fabs(spriteAngle) < (fovRad / 2.0f) + spriteHalfWidthAngle) {
-        int spriteScreenX = (int)((spriteAngle + fovRad / 2.0f) / fovRad * screenWidth);
+        int spriteScreenX = (int)((0.5f + spriteAngle / fovRad) * screenWidth);
 
         float aspectRatio = 2.0f;
 
@@ -104,7 +111,7 @@ void RenderSprite(
         for (int sx = 0; sx < spriteWidth; sx++) {
             int screenX = left + sx;
             if (screenX < 0 || screenX >= screenWidth) continue;
-            if (spriteDistance >= depthBuffer[screenX]) continue;
+            if (spriteDistance > depthBuffer[screenX] + 0.1f) continue;
 
             for (int sy = 0; sy < spriteHeight; sy++) {
                 int screenY = top + sy;
@@ -257,7 +264,7 @@ void UpdateEnemies(float dt) {
 
             float distance = sqrt(dx * dx + dy * dy);
 
-            if (distance < 10.f && EnemyVision(e.x, e.y, x, y)) {
+            if (distance < 32.f && EnemyVision(e.x, e.y, x, y)) {
                 e.state = EnemyState::CHASE;
             }
 
@@ -283,47 +290,31 @@ void UpdateEnemies(float dt) {
             int playerTileY = (int)y;
 
             int bestDir = -1;
-            float bestDistance = 999999.0f;
 
-            for (int i = 0; i < 4; i++) {
-                int tx = enemyTileX + dirs[i].dx;
-                int ty = enemyTileY + dirs[i].dy;
+            std::vector<Node> path = FindPath(
+                enemyTileX,
+                enemyTileY,
+                playerTileX,
+                playerTileY
+            );
 
-                // wall or occupied by another enemy
-                if (GetMapCell(tx, ty) == '1')
-                    continue;
 
-                bool occupied = false;
+            if (path.size() >= 2) {
+                int nextX = path[1].x;
+                int nextY = path[1].y;
 
-                for (const Entity& other : entities) {
-                    if (&other == &e)
-                        continue;
 
-                    if (other.type != EntityType::ENEMY)
-                        continue;
+                float dirX = nextX - enemyTileX;
+                float dirY = nextY - enemyTileY;
 
-                    float ox = other.x - (tx + 0.5f);
-                    float oy = other.y - (ty + 0.5f);
-
-                    float distance = sqrt(ox * ox + oy * oy);
-
-                    if (distance < 0.55f) {
-                        occupied = true;
-                        break;
-                    }
+                if (dirX != 0)
+                {
+                    bestDir = dirX > 0 ? 0 : 1;
                 }
 
-                if (occupied)
-                    continue;
-
-                float dx = playerTileX - tx;
-                float dy = playerTileY - ty;
-
-                float dist = dx * dx + dy * dy;
-
-                if (dist < bestDistance) {
-                    bestDistance = dist;
-                    bestDir = i;
+                else if (dirY != 0)
+                {
+                    bestDir = dirY > 0 ? 2 : 3;
                 }
             }
 
@@ -390,6 +381,13 @@ void UpdateEnemies(float dt) {
             // wall collision
             bool hitsWall = GetMapCell((int)newX, (int)newY) == '1';
 
+            if (hitsWall) {
+                e.stuckTimer += dt;
+            }
+            else {
+                e.stuckTimer = 0.0f;
+            }
+
             // player collision
             float pdx = newX - x;
             float pdy = newY - y;
@@ -401,17 +399,53 @@ void UpdateEnemies(float dt) {
                 e.x = newX;
                 e.y = newY;
             }
+            if (e.stuckTimer > 0.5f) {
+                e.stuckTimer = 0.0f;
+                e.stateTimer = 1.0f;
+            }
             else if (hitsEnemy) {
-                // try horizontal dodge
-                float sideX = -dy * speed * dt;
-                float sideY = dx * speed * dt;
+                float pushX = 0;
+                float pushY = 0;
 
-                float dodgeX = e.x + sideX;
-                float dodgeY = e.y + sideY;
+                for (const Entity& other : entities) {
+                    if (&other == &e)
+                        continue;
 
-                if (GetMapCell((int)dodgeX, (int)dodgeY) != '1') {
-                    e.x = dodgeX;
-                    e.y = dodgeY;
+                    if (other.type != EntityType::ENEMY)
+                        continue;
+
+                    float dx = e.x - other.x;
+                    float dy = e.y - other.y;
+
+                    float dist = sqrt(dx * dx + dy * dy);
+
+                    if (dist < 0.8f && dist > 0.001f) {
+                        float force = (0.8f - dist) / 0.8f;
+
+                        pushX += dx / dist * force;
+                        pushY += dy / dist * force;
+                    }
+                }
+
+                float pushLength = sqrt(
+                    pushX * pushX +
+                    pushY * pushY
+                );
+
+                if (pushLength > 0.001f) {
+                    pushX /= pushLength;
+                    pushY /= pushLength;
+
+                    float newPushX =
+                        e.x + pushX * 2.0f * dt;
+
+                    float newPushY =
+                        e.y + pushY * 2.0f * dt;
+
+                    if (!EnemyWallCollision(newPushX, newPushY)) {
+                        e.x = newPushX;
+                        e.y = newPushY;
+                    }
                 }
             }
             else {

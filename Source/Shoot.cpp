@@ -96,23 +96,19 @@ void DrawGunToBuffer(const SpriteGrid& gun)
 }
 
 void Shoot() {
-    // player position
     float px = x;
     float py = y;
 
-    // shoot direction (angle in degrees)
     float shootRad = angle * 3.14159f / 180.0f;
     float dx = cos(shootRad);
     float dy = sin(shootRad);
 
-    // max shoot distance
     float maxDistance = 999.0f;
-
     float distance = 0.0f;
-    bool hit = false;
-    Entity* hitEntity = nullptr;
 
-    while (distance < maxDistance && !hit) {
+    auto hitIt = entities.end();
+
+    while (distance < maxDistance) {
         px += dx * 0.1f;
         py += dy * 0.1f;
         distance += 0.1f;
@@ -120,45 +116,31 @@ void Shoot() {
         int tileX = (int)px;
         int tileY = (int)py;
 
-        // check wall collision
+        // Stop when the bullet hits a wall.
         if (GetMapCell(tileX, tileY) == '1') {
-            // hit a wall stop the ray
             break;
         }
 
-        // check entity collision
-        for (auto& e : entities) {
-            if (e.type == EntityType::ENEMY &&
-                fabs(e.x - px) < 0.5f && fabs(e.y - py) < 0.5f) {
-                hitEntity = &e;
-                hit = true;
+        // Find the first enemy hit by the ray.
+        for (auto it = entities.begin(); it != entities.end(); ++it) {
+            if (it->type == EntityType::ENEMY && fabs(it->x - px) < 0.5f && fabs(it->y - py) < 0.5f) {
+                hitIt = it;
                 break;
             }
         }
+
+        if (hitIt != entities.end()) {
+            break;
+        }
     }
 
-    if (hitEntity)
-    {
+    if (hitIt != entities.end()) {
         kills++;
 
-        int ex = (int)hitEntity->x;
-        int ey = (int)hitEntity->y;
+        // Remove only the exact enemy that was hit.
+        entities.erase(hitIt);
 
-        entities.erase(
-            std::remove_if(
-                entities.begin(),
-                entities.end(),
-                [ex, ey](const Entity& e)
-                {
-                    return e.type == EntityType::ENEMY &&
-                        (int)e.x == ex &&
-                        (int)e.y == ey;
-                }),
-            entities.end()
-        );
-
-        if (kills >= totalEnemies)
-        {
+        if (kills >= totalEnemies) {
             SpawnExit();
         }
     }

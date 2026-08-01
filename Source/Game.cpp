@@ -48,15 +48,19 @@ bool PlayerCollidingWithEnemy(float playerX, float playerY) {
     return false;
 }
 
-char GetMapCell(int x, int y)
-{
+char GetMapCell(int x, int y) {
     if (y < 0 || y >= currentMap->height)
         return '1';
 
     if (x < 0 || x >= (int)currentMap->rows[y].size())
         return '1';
 
-    return currentMap->rows[y][x];
+    char tile = currentMap->rows[y][x];
+
+    if (tile == '2' || tile == '4')
+        return ' ';
+
+    return tile;
 }
 
 void getMapEntities() {
@@ -74,7 +78,6 @@ void getMapEntities() {
                 e.h = 17;
 
                 entities.push_back(e);
-                currentMap->rows[y][x] = ' '; // Remove the spawn marker from the collision map
 
                 break;
             }
@@ -94,7 +97,6 @@ void getMapEntities() {
                 e.w = 16;
                 e.h = 13;
                 entities.push_back(e);
-                currentMap->rows[y][x] = ' ';
                 break;
             }
             }
@@ -140,7 +142,6 @@ void SpawnExit() {
 }
 
 void Game() {
-    float playerRad = angle * 3.14159f / 180.0f;
     float fov = 60.0f;
 
     if (depthBuffer.size() != screenWidth)
@@ -155,6 +156,8 @@ void Game() {
 
     float mouseSensitivity = 0.10f;
     angle += deltaX * mouseSensitivity;
+
+    float playerRad = angle * 3.14159f / 180.0f;
 
     lastMouse = mousePos;
 
@@ -333,7 +336,7 @@ void Game() {
     UpdateEnemies(0.04f);
 
     // Sort entities from farthest to nearest
-    std::sort(
+    std::stable_sort(
         entities.begin(),
         entities.end(),
         [&](const Entity& a, const Entity& b)
@@ -489,5 +492,5 @@ void Game() {
         );
     }
 
-    Sleep(40);
+    Sleep(16);
 }
