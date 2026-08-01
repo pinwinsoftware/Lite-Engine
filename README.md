@@ -42,10 +42,6 @@ D = Strafe Right
 <br>
 <br>
 <br>
-<br>
-<br>
-<br>
-<br>
 Mouse = Camera Movement
 
 Shift = Sprint
