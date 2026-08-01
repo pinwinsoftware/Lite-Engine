@@ -38,9 +38,8 @@ S = Walk Backward
 A = Strafe Left
 
 D = Strafe Right
-
-
-
+<br>
+<br>
 Mouse = Camera Movement
 
 Shift = Sprint
