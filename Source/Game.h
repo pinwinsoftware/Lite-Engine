@@ -13,6 +13,7 @@ void SpawnExit();
 void Game();
 void LoadEntities();
 char GetMapCell(int x, int y);
+int RollDice(int amount, int sides);
 
 struct Map;
 extern Map* currentMap;

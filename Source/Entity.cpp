@@ -1,11 +1,31 @@
 #include <cmath>
+#include <algorithm>
 
 #include "FindingPath.h"
 #include "Entity.h"
 #include "Game.h"
 #include "main.h"
 
-const char* monsterSprite[17] = {
+const char* monsterSprite[16] = {
+    "       111      ",
+    "      10101     ",
+    "      11111     ",
+    "      11011     ",
+    "       111      ",
+    "     1111111    ",
+    "    111111111   ",
+    "    1 11111 1   ",
+    "    1 11111 1   ",
+    "    1 11111 1   ",
+    "      11 11     ",
+    "      11 11     ",
+    "       1 1      ",
+    "       1        ",
+    "         11     ",
+    "       11       ",
+};
+
+const char* bigMonsterSprite[16] = {
     "     111111     ",
     "    10000001111 ",
     "   1101001011111",
@@ -18,11 +38,86 @@ const char* monsterSprite[17] = {
     "    1111   111  ",
     "    111         ",
     "    111     11  ",
-    "    111     11  ",
-    "     1      111 ",
-    "    11          ",
+    "     1      11  ",
+    "    11      111 ",
     "   1111         ",
     "  11111         ",
+};
+
+const char* fireBallSprite[16] = {
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "      1111      ",
+    "     111101     ",
+    "    11111001    ",
+    "    11111101    ",
+    "    10111111    ",
+    "    10011111    ",
+    "     101111     ",
+    "      1111      ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+};
+
+const char* corpsesSprite[16] = {
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "     1  1 1     ",
+    "      11111     ",
+    "  1  1111111  1 ",
+    " 111111111111111",
+    "  111       111 ",
+    "   1         1  ",
+};
+
+const char* ammoSprite[16] = {
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "      1 1 1     ",
+    "      1 1 1     ",
+    "     111111     ",
+    "     111111     ",
+    "     111111     ",
+    "     111111     ",
+};
+
+const char* medKitSprite[16] = {
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "                ",
+    "    11111111    ",
+    "    11100111    ",
+    "    11100111    ",
+    "    10000001    ",
+    "    10000001    ",
+    "    11100111    ",
+    "    11100111    ",
+    "    11111111    ",
 };
 
 const char* coinSprite[10] = {
@@ -85,13 +180,13 @@ void RenderSprite(
 
     float spriteAngle = atan2(dy, dx) - playerRad;
 
-    while (spriteAngle > 3.14159f)
-        spriteAngle -= 6.28318f;
+    while (spriteAngle > pi)
+        spriteAngle -= pi * 2;
 
-    while (spriteAngle < -3.14159f)
-        spriteAngle += 6.28318f;
+    while (spriteAngle < -pi)
+        spriteAngle += pi * 2;
 
-    float fovRad = fov * 3.14159f / 180.0f;
+    float fovRad = fov * pi / 180.0f;
 
     int spriteScreenX = screenWidth / 2 + (int)(tan(spriteAngle) / tan(fovRad / 2.0f) * screenWidth / 2);
 
@@ -136,14 +231,17 @@ void RenderSprite(
         }
     }
 }
+
+const float playerRadius = 0.25f;
+const float enemyRadius = 0.35f;
 const float collisionRadius = 0.40f;
 
-bool EnemyCollidingWithEnemy(const Entity& current, float newX, float newY) {
-    const float enemyRadius = 0.35f;
+constexpr float enemyViewRange = 32.f;
+constexpr float meleeRange = 1.15f;
 
+bool EnemyCollidingWithEnemy(const Entity& current, float newX, float newY) {
     for (const Entity& other : entities) {
 
-        // ignore itself
         if (&current == &other)
             continue;
 
@@ -220,275 +318,399 @@ bool EnemyVision(float enemyX, float enemyY, float playerX, float playerY) {
         checkY += stepY;
 
         if (GetMapCell((int)checkX, (int)checkY) == '1') {
-            return false; // wall blocks vision
+            return false;
         }
     }
     return true;
 }
 
+void UpdateFireballs(float dt) {
+    for (Entity& e : entities) {
+        if (e.type != EntityType::FIREBALL)
+            continue;
+
+        float newX =
+            e.x + e.velocityX * dt;
+
+        float newY =
+            e.y + e.velocityY * dt;
+
+        // Destroy the fireball when it hits a wall
+        if (GetMapCell((int)newX, (int)newY) == '1') {
+            e.lifeTimer = 0.0f;
+            continue;
+        }
+
+        e.x = newX;
+        e.y = newY;
+
+        e.lifeTimer -= dt;
+
+        float dx = x - e.x;
+        float dy = y - e.y;
+
+        float hitDistance = collisionRadius;
+
+        if (dx * dx + dy * dy < hitDistance * hitDistance) {
+            int damage = RollDice(3, 7) + 7;
+            health -= damage;
+
+            e.lifeTimer = 0.0f;
+        }
+    }
+
+    entities.erase(std::remove_if(entities.begin(), entities.end(), [](const Entity& e) {
+        return
+            e.type == EntityType::FIREBALL &&
+            e.lifeTimer <= 0.0f;
+        }
+        ),
+        entities.end()
+    );
+}
+
+void SpawnFireball(float startX, float startY, float targetX, float targetY) {
+    Entity fireball(EntityType::FIREBALL, startX, startY);
+
+    fireball.shape = fireBallSprite;
+    fireball.w = 16;
+    fireball.h = 16;
+
+    float dx = targetX - startX;
+    float dy = targetY - startY;
+
+    float length = sqrtf(dx * dx + dy * dy);
+
+    if (length > 0.001f) {
+        dx /= length;
+        dy /= length;
+    }
+
+    const float fireballSpeed = 5.0f;
+
+    fireball.velocityX = dx * fireballSpeed;
+
+    fireball.velocityY = dy * fireballSpeed;
+
+    fireball.lifeTimer = 5.0f;
+
+    entities.push_back(fireball);
+}
+
+struct Direction {
+    int dx;
+    int dy;
+};
+
+const Direction directions[4] = {
+    { 1, 0 },   // right
+    {-1, 0 },   // left
+    { 0, 1 },   // down
+    { 0,-1 }    // up
+};
+
+void UpdateIdle(Entity& e) {
+    float dx = x - e.x;
+    float dy = y - e.y;
+
+    float distance = sqrtf(dx * dx + dy * dy);
+
+    if (distance < enemyViewRange && EnemyVision(e.x, e.y, x, y)) {
+        e.state = EnemyState::CHASE;
+        e.attackTimer = 0.f;
+    }
+}
+
+void UpdateEnemyAnimations(float dt) {
+    for (Entity& e : entities) {
+        if (e.type == EntityType::ENEMY) {
+            if (e.state == EnemyState::CHASE) {
+                e.stateTimer += dt;
+
+                if (e.stateTimer >= 0.25f) {
+                    e.stateTimer = 0.0f;
+                    e.flipSprite = !e.flipSprite;
+                }
+            }
+        }
+        else if (e.type == EntityType::FIREBALL) {
+            e.stateTimer += dt;
+
+            if (e.stateTimer >= 0.15f) {
+                e.stateTimer = 0.0f;
+                e.flipSprite = !e.flipSprite;
+            }
+        }
+    }
+}
+
+void MoveEnemy(Entity& e, float dt) {
+    float dxPlayer = x - e.x;
+    float dyPlayer = y - e.y;
+
+    float playerDistance = sqrtf(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+    
+    if (playerDistance <= meleeRange) {
+        e.state = EnemyState::ATTACK;
+        e.attackTimer = 0.0f;
+        e.hasAttacked = false;
+        e.flipSprite = false;
+        return;
+    }
+
+    int enemyTileX = (int)e.x;
+    int enemyTileY = (int)e.y;
+
+    int playerTileX = (int)x;
+    int playerTileY = (int)y;
+
+    int bestDir = -1;
+
+    std::vector<Node> path = FindPath(enemyTileX, enemyTileY, playerTileX, playerTileY);
+
+    if (path.size() >= 2) {
+        int nextX = path[1].x;
+        int nextY = path[1].y;
+
+        float dirX = nextX - enemyTileX;
+
+        float dirY = nextY - enemyTileY;
+
+        if (dirX != 0) {
+            bestDir = dirX > 0 ? 0 : 1;
+        }
+        else if (dirY != 0) {
+            bestDir = dirY > 0 ? 2 : 3;
+        }
+    }
+
+    // Fallback
+    if (bestDir == -1) {
+        e.stateTimer += dt;
+
+        if (e.stateTimer > 1.0f) {
+            e.stateTimer = 0.0f;
+
+            std::vector<int> possibleDirs;
+
+            for (int i = 0; i < 4; i++) {
+                int tx = enemyTileX + directions[i].dx;
+
+                int ty = enemyTileY + directions[i].dy;
+
+                if (GetMapCell(tx, ty) == '1')
+                    continue;
+
+                if (EnemyOnTile(tx, ty, e)) {
+                    continue;
+                }
+
+                possibleDirs.push_back(i);
+            }
+            if (!possibleDirs.empty()) {
+                bestDir = possibleDirs[rand() % possibleDirs.size()];
+            }
+            else {
+                return;
+            }
+        }
+        else {
+            return;
+        }
+    }
+
+    // Random movement offset
+    e.randomTimer += dt;
+
+    if (e.randomTimer > 1.0f) {
+        e.randomTimer = 0.0f;
+        e.randomOffsetX = ((rand() % 200) - 100) / 100.0f;
+        e.randomOffsetY = ((rand() % 200) - 100) / 100.0f;
+    }
+
+    float targetX = enemyTileX + directions[bestDir].dx + 0.5f + e.randomOffsetX * 0.3f;
+    float targetY = enemyTileY + directions[bestDir].dy + 0.5f + e.randomOffsetY * 0.3f;
+
+    // Movement
+    float moveX = targetX - e.x;
+    float moveY = targetY - e.y;
+    float moveLength = sqrtf(moveX * moveX + moveY * moveY);
+
+    if (moveLength > 0.001f) {
+        moveX /= moveLength;
+        moveY /= moveLength;
+    }
+
+    float newX = e.x + moveX * e.speed * dt;
+    float newY = e.y + moveY * e.speed * dt;
+
+    // Collisions
+    bool hitsWall = GetMapCell((int)newX, (int)newY) == '1';
+
+    if (hitsWall) {
+        e.stuckTimer += dt;
+    }
+    else {
+        e.stuckTimer = 0.0f;
+    }
+
+    float pdx = newX - x;
+    float pdy = newY - y;
+
+    float collisionDistance = playerRadius + enemyRadius;
+
+    bool hitsPlayer = (pdx * pdx + pdy * pdy) < (collisionDistance * collisionDistance);
+    bool hitsEnemy = EnemyCollidingWithEnemy(e, newX, newY);
+
+    if (!hitsWall && !hitsPlayer && !hitsEnemy) {
+        e.x = newX;
+        e.y = newY;
+    }
+
+    // Stuck recovery
+    if (e.stuckTimer > 0.5f) {
+        e.stuckTimer = 0.0f;
+        e.stateTimer = 1.0f; // Force the random fallback on the next update.
+    }
+    else if (hitsEnemy) {
+        float pushX = 0.0f;
+        float pushY = 0.0f;
+
+        for (const Entity& other : entities) {
+            if (&other == &e)
+                continue;
+
+            if (other.type != EntityType::ENEMY) {
+                continue;
+            }
+
+            float enemyDX = e.x - other.x;
+            float enemyDY = e.y - other.y;
+
+            float distance = sqrtf(enemyDX * enemyDX + enemyDY * enemyDY);
+
+            if (distance < 0.8f && distance > 0.001f) {
+                float force = (0.8f - distance) / 0.8f;
+
+                pushX += enemyDX / distance * force;
+                pushY += enemyDY / distance * force;
+            }
+        }
+
+        float pushLength = sqrtf(pushX * pushX + pushY * pushY);
+
+        if (pushLength > 0.001f) {
+            pushX /= pushLength;
+            pushY /= pushLength;
+
+            float newPushX = e.x + pushX * 2.0f * dt;
+            float newPushY = e.y + pushY * 2.0f * dt;
+
+            if (!EnemyWallCollision(newPushX, newPushY)) {
+                e.x = newPushX;
+                e.y = newPushY;
+            }
+        }
+    }
+    else {
+        e.stuckTimer = 0.0f;
+    }
+}
+
+void UpdateMeleeAttack(Entity& e, float dt) {
+    float dxPlayer = x - e.x;
+    float dyPlayer = y - e.y;
+
+    float playerDistance = sqrtf(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+
+    // The player moved away.
+    // Return to chasing and using fireballs.
+    if (playerDistance > meleeRange) {
+        e.state = EnemyState::CHASE;
+        e.attackTimer = 0.0f;
+        e.hasAttacked = false;
+        e.flipSprite = false;
+        return;
+    }
+
+    // Stop the walking animation
+    e.flipSprite = false;
+    e.attackTimer += dt;
+
+    if (e.attackTimer >= 0.5f && !e.hasAttacked) {
+        e.hasAttacked = true;
+
+        // Ranged enemies have weaker melee attacks than melee enemies.
+        if (e.enemyClass == EnemyClass::RANGED) {
+            int damage = RollDice(2, 5) + 2;
+            health -= damage;
+        }
+        else {
+            int damage = RollDice(3, 5) + 7;
+            health -= damage;
+        }
+    }
+
+    // attack animation delay
+    if (e.attackTimer >= 0.5f && e.attackTimer < 1.0f) {
+        e.flipSprite = true;
+    }
+
+    // Start another melee attack if the player is still close.
+    if (e.attackTimer >= 1.1f) {
+        e.attackTimer = 0.0f;
+        e.hasAttacked = false;
+        e.flipSprite = false;
+    }
+}
+
+void UpdateRangedAttack(Entity& e, float dt) {
+    float dxPlayer = x - e.x;
+    float dyPlayer = y - e.y;
+    float playerDistance = sqrtf(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+    bool canSeePlayer = EnemyVision(e.x, e.y, x, y);
+
+    // Fireball attack
+    const float shootRange = 12.f;
+    const float fireCooldown = 2.f;
+
+    if (canSeePlayer && playerDistance <= shootRange && playerDistance > meleeRange) {
+        e.attackTimer += dt;
+
+        if (e.attackTimer >= fireCooldown) {
+            SpawnFireball(e.x, e.y, x, y);
+
+            e.attackTimer = 0.0f;
+        }
+    }
+    else {
+        e.attackTimer = 0.0f; // fireball cooldown after losing sight.
+    }
+}
+
 void UpdateEnemies(float dt) {
-    const float speed = 3.0f;
-
-    const float playerRadius = 0.25f;
-    const float enemyRadius = 0.35f;
-
-    struct Direction {
-        int dx;
-        int dy;
-    };
-
-    Direction dirs[4] = {
-        { 1, 0 },   // right
-        {-1, 0 },   // left
-        { 0, 1 },   // down
-        { 0,-1 }    // up
-    };
+    UpdateEnemyAnimations(dt);
 
     for (Entity& e : entities) {
         if (e.type != EntityType::ENEMY)
             continue;
 
-        if (e.state == EnemyState::CHASE) {
-            e.stateTimer += dt;
-
-            if (e.stateTimer >= 0.25f) {
-                e.stateTimer = 0.0f;
-                e.flipSprite = !e.flipSprite;
-            }
-        }
-
         switch (e.state) {
-        case EnemyState::IDLE: {
-            float dx = x - e.x;
-            float dy = y - e.y;
-
-            float distance = sqrt(dx * dx + dy * dy);
-
-            if (distance < 32.f && EnemyVision(e.x, e.y, x, y)) {
-                e.state = EnemyState::CHASE;
-            }
-
+        case EnemyState::IDLE:
+            UpdateIdle(e);
             break;
-        }
-        case EnemyState::CHASE: {
-            float dxPlayer = x - e.x;
-            float dyPlayer = y - e.y;
 
-            float playerDistance = sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+        case EnemyState::CHASE:
+        {
+            if (e.enemyClass == EnemyClass::RANGED)
+                UpdateRangedAttack(e, dt);
 
-            if (playerDistance < 1.0f) {
-                e.state = EnemyState::ATTACK;
-                e.attackTimer = 0.0f;
-                e.hasAttacked = false;
-                break;
-            }
-
-            int enemyTileX = (int)e.x;
-            int enemyTileY = (int)e.y;
-
-            int playerTileX = (int)x;
-            int playerTileY = (int)y;
-
-            int bestDir = -1;
-
-            std::vector<Node> path = FindPath(
-                enemyTileX,
-                enemyTileY,
-                playerTileX,
-                playerTileY
-            );
-
-
-            if (path.size() >= 2) {
-                int nextX = path[1].x;
-                int nextY = path[1].y;
-
-
-                float dirX = nextX - enemyTileX;
-                float dirY = nextY - enemyTileY;
-
-                if (dirX != 0)
-                {
-                    bestDir = dirX > 0 ? 0 : 1;
-                }
-
-                else if (dirY != 0)
-                {
-                    bestDir = dirY > 0 ? 2 : 3;
-                }
-            }
-
-            if (bestDir == -1) {
-                e.stateTimer += dt; // wait instead of freezing forever
-
-                if (e.stateTimer > 1.0f) {
-                    e.stateTimer = 0.0f;
-
-                    std::vector<int> possibleDirs;
-
-                    for (int i = 0; i < 4; i++) {
-                        int tx = enemyTileX + dirs[i].dx;
-                        int ty = enemyTileY + dirs[i].dy;
-
-                        if (GetMapCell(tx, ty) == '1')
-                            continue;
-
-                        if (EnemyOnTile(tx, ty, e))
-                            continue;
-
-                        possibleDirs.push_back(i);
-                    }
-
-                    if (!possibleDirs.empty()) {
-                        bestDir = possibleDirs[rand() % possibleDirs.size()];
-                    }
-                    else {
-                        break;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-
-            e.randomTimer += dt;
-
-            if (e.randomTimer > 1.0f) {
-                e.randomTimer = 0.0f;
-
-                e.randomOffsetX = ((rand() % 200) - 100) / 100.0f;
-                e.randomOffsetY = ((rand() % 200) - 100) / 100.0f;
-            }
-
-            // target tile center
-            float targetX = enemyTileX + dirs[bestDir].dx + 0.5f + e.randomOffsetX * 0.3f;
-            float targetY = enemyTileY + dirs[bestDir].dy + 0.5f + e.randomOffsetY * 0.3f;
-
-            // direction toward target
-            float dx = targetX - e.x;
-            float dy = targetY - e.y;
-
-            float length = sqrt(dx * dx + dy * dy);
-
-            if (length > 0.001f) {
-                dx /= length;
-                dy /= length;
-            }
-
-            float newX = e.x + dx * speed * dt;
-            float newY = e.y + dy * speed * dt;
-
-            // wall collision
-            bool hitsWall = GetMapCell((int)newX, (int)newY) == '1';
-
-            if (hitsWall) {
-                e.stuckTimer += dt;
-            }
-            else {
-                e.stuckTimer = 0.0f;
-            }
-
-            // player collision
-            float pdx = newX - x;
-            float pdy = newY - y;
-
-            bool hitsPlayer = (pdx * pdx + pdy * pdy) < (playerRadius + enemyRadius) * (playerRadius + enemyRadius);
-            bool hitsEnemy = EnemyCollidingWithEnemy(e, newX, newY);
-
-            if (!hitsWall && !hitsPlayer && !hitsEnemy) {
-                e.x = newX;
-                e.y = newY;
-            }
-            if (e.stuckTimer > 0.5f) {
-                e.stuckTimer = 0.0f;
-                e.stateTimer = 1.0f;
-            }
-            else if (hitsEnemy) {
-                float pushX = 0;
-                float pushY = 0;
-
-                for (const Entity& other : entities) {
-                    if (&other == &e)
-                        continue;
-
-                    if (other.type != EntityType::ENEMY)
-                        continue;
-
-                    float dx = e.x - other.x;
-                    float dy = e.y - other.y;
-
-                    float dist = sqrt(dx * dx + dy * dy);
-
-                    if (dist < 0.8f && dist > 0.001f) {
-                        float force = (0.8f - dist) / 0.8f;
-
-                        pushX += dx / dist * force;
-                        pushY += dy / dist * force;
-                    }
-                }
-
-                float pushLength = sqrt(
-                    pushX * pushX +
-                    pushY * pushY
-                );
-
-                if (pushLength > 0.001f) {
-                    pushX /= pushLength;
-                    pushY /= pushLength;
-
-                    float newPushX =
-                        e.x + pushX * 2.0f * dt;
-
-                    float newPushY =
-                        e.y + pushY * 2.0f * dt;
-
-                    if (!EnemyWallCollision(newPushX, newPushY)) {
-                        e.x = newPushX;
-                        e.y = newPushY;
-                    }
-                }
-            }
-            else {
-                e.stuckTimer = 0.0f;
-            }
+            MoveEnemy(e, dt);
             break;
         }
         case EnemyState::ATTACK:
-        {
-            e.attackTimer += dt;
-
-            float dxPlayer = x - e.x;
-            float dyPlayer = y - e.y;
-
-            float playerDistance = sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
-
-            // Disable walking animation while attacking
-            e.flipSprite = false;
-
-            // wait 400 miliseconds before attacking
-            if (e.attackTimer >= 0.4f && !e.hasAttacked && playerDistance < 1.0f) {
-                e.hasAttacked = true;
-
-                health -= 10;
-            }
-
-            // quick attack "animation"
-            if (e.attackTimer >= 0.4f && e.attackTimer < 0.6f) {
-                e.flipSprite = true;
-            }
-
-            // return to chase
-            if (e.attackTimer >= 0.7f) {
-                e.attackTimer = 0.0f;
-                e.hasAttacked = false;
-
-                e.flipSprite = false;
-
-                e.state = EnemyState::CHASE;
-            }
-
+            UpdateMeleeAttack(e, dt);
             break;
-        }
         }
     }
 }

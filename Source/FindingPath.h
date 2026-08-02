@@ -2,12 +2,10 @@
 
 #include <vector>
 
-struct Node
-{
+struct Node {
     int x;
     int y;
 };
-
 
 std::vector<Node> FindPath(
     int startX,

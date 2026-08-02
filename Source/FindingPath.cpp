@@ -13,8 +13,7 @@ std::vector<Node> FindPath(
 {
     std::vector<Node> empty;
 
-    struct Cell
-    {
+    struct Cell {
         int x;
         int y;
     };
