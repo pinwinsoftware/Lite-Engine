@@ -42,7 +42,7 @@ LED files can store:
 * Weapon definitions
 * Weapon sprites
 
-LED files can be created and modified using the LED Editor: https://pinwinsoftware.com/Game/11/LADE](https://github.com/pinwinsoftware/Lade
+LED files can be created and modified using the LED Editor: https://github.com/pinwinsoftware/Lade
 
 # How to Run
 
