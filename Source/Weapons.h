@@ -1,21 +1,18 @@
 #pragma once
-#include <vector>
-#include <map>
 #include <string>
+#include <vector>
 
-enum class Weapon {
-    KNIFE,
-    GUN
-};
-
-extern Weapon currentWeapon;
+#include "WeaponsDefinitions.h"
 
 using SpriteGrid = std::vector<std::string>;
 
-extern std::map<std::string, SpriteGrid> Sprite;
+extern int currentWeaponId; // The currently selected weapon is identified by its LES Id
+
+extern bool SelectWeapon(int id);
+
+const WeaponDefinition* GetCurrentWeapon();
 
 void Attack();
-void KnifeAttack();
-void Shoot();
-void LoadSprites();
-void DrawGunToBuffer(const SpriteGrid& gun);
+void Shoot(const WeaponDefinition& weapon);
+void KnifeAttack(const WeaponDefinition& weapon);
+void DrawCurrentWeapon();

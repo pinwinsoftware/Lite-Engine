@@ -6,157 +6,6 @@
 #include "Game.h"
 #include "main.h"
 
-const char* monsterSprite[16] = {
-    "       111      ",
-    "      10101     ",
-    "      11111     ",
-    "      11011     ",
-    "       111      ",
-    "     1111111    ",
-    "    111111111   ",
-    "    1 11111 1   ",
-    "    1 11111 1   ",
-    "    1 11111 1   ",
-    "      11 11     ",
-    "      11 11     ",
-    "       1 1      ",
-    "       1        ",
-    "         11     ",
-    "       11       ",
-};
-
-const char* bigMonsterSprite[16] = {
-    "     111111     ",
-    "    10000001111 ",
-    "   1101001011111",
-    "   1100110011111",
-    "  11110000111111",
-    " 111  11111 1111",
-    "111     11  111 ",
-    " 1   111  11111 ",
-    "    11111 11111 ",
-    "    1111   111  ",
-    "    111         ",
-    "    111     11  ",
-    "     1      11  ",
-    "    11      111 ",
-    "   1111         ",
-    "  11111         ",
-};
-
-const char* fireBallSprite[16] = {
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "      1111      ",
-    "     111101     ",
-    "    11111001    ",
-    "    11111101    ",
-    "    10111111    ",
-    "    10011111    ",
-    "     101111     ",
-    "      1111      ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-};
-
-const char* corpsesSprite[16] = {
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "     1  1 1     ",
-    "      11111     ",
-    "  1  1111111  1 ",
-    " 111111111111111",
-    "  111       111 ",
-    "   1         1  ",
-};
-
-const char* ammoSprite[16] = {
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "      1 1 1     ",
-    "      1 1 1     ",
-    "     111111     ",
-    "     111111     ",
-    "     111111     ",
-    "     111111     ",
-};
-
-const char* medKitSprite[16] = {
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "                ",
-    "    11111111    ",
-    "    11100111    ",
-    "    11100111    ",
-    "    10000001    ",
-    "    10000001    ",
-    "    11100111    ",
-    "    11100111    ",
-    "    11111111    ",
-};
-
-const char* coinSprite[10] = {
-    "           ",
-    "    111    ",
-    "   10001   ",
-    "  1001001  ",
-    "  1011001  ",
-    "  1001001  ",
-    "  1001001  ",
-    "   10001   ",
-    "    111    ",
-    "           ",
-};
-
-const char* trollSprite[13] = {
-    "  11111111111   ",
-    " 1000000000001  ",
-    " 1000000000001  ",
-    "101110111100001 ",
-    "1001100011000001",
-    " 100001000000001",
-    " 100110001110001",
-    " 11111111010001 ",
-    " 1010101010001  ",
-    "1011111110001   ",
-    "100000000011    ",
-    "1000001111      ",
-    " 11111          ",
-};
-
-const char* exitSprite[5] = {
-    "11111001000100111110011111",
-    "10000000101000001000000100",
-    "11111000010000001000000100",
-    "10000000101000001000000100",
-    "11111001000100111110000100",
-};
-
 std::vector<Entity> entities;
 
 void RenderSprite(
@@ -174,8 +23,6 @@ void RenderSprite(
     float dx = sprite.x - playerX;
     float dy = sprite.y - playerY;
 
-    bool flipSprite = sprite.flipSprite;
-
     float spriteDistance = sqrt(dx * dx + dy * dy);
 
     float spriteAngle = atan2(dy, dx) - playerRad;
@@ -188,45 +35,51 @@ void RenderSprite(
 
     float fovRad = fov * pi / 180.0f;
 
-    int spriteScreenX = screenWidth / 2 + (int)(tan(spriteAngle) / tan(fovRad / 2.0f) * screenWidth / 2);
-
     float spriteHalfWidthAngle = atan2(sprite.w / 2.0f, spriteDistance);
 
     if (fabs(spriteAngle) < (fovRad / 2.0f) + spriteHalfWidthAngle) {
         int spriteScreenX = (int)((0.5f + spriteAngle / fovRad) * screenWidth);
 
-        float aspectRatio = 2.0f;
+        constexpr float spriteAspectRatio = 2.0f;
 
         int spriteHeight = (int)(screenHeight / spriteDistance);
-        int spriteWidth = (int)(spriteHeight * aspectRatio);
+        int spriteWidth = (int)(spriteHeight * spriteAspectRatio);
 
         int top = (screenHeight - spriteHeight) / 2;
         int left = spriteScreenX - spriteWidth / 2;
 
         for (int sx = 0; sx < spriteWidth; sx++) {
             int screenX = left + sx;
-            if (screenX < 0 || screenX >= screenWidth) continue;
-            if (spriteDistance > depthBuffer[screenX] + 0.1f) continue;
+            if (screenX < 0 || screenX >= screenWidth)
+                continue;
+            if (spriteDistance > depthBuffer[screenX] + 0.1f)
+                continue;
 
             for (int sy = 0; sy < spriteHeight; sy++) {
                 int screenY = top + sy;
-                if (screenY < 0 || screenY >= screenHeight) continue;
+
+                if (screenY < 0 || screenY >= screenHeight) 
+                    continue;
 
                 int texX;
 
-                if (flipSprite) {
-                    texX = sprite.w - 1 -
-                        (sx * sprite.w / spriteWidth);
+                if (sprite.flipSprite) {
+                    texX = sprite.w - 1 - (sx * sprite.w / spriteWidth);
                 }
                 else {
                     texX = sx * sprite.w / spriteWidth;
                 }
                 int texY = sy * sprite.h / spriteHeight;
 
-                if (sprite.shape[texY][texX] == '1')
-                    screen[screenY][screenX] = char(219);
-                else if (sprite.shape[texY][texX] == '0')
-                    screen[screenY][screenX] = ' ';
+                if (texY >= 0 && texY < (int)sprite.sprite.pixels.size() && 
+                    texX >= 0 && texX < (int)sprite.sprite.pixels[texY].size()) {
+                    
+                    if (sprite.sprite.pixels[texY][texX] == '1')
+                        screen[screenY][screenX] = char(219);
+                    else if (sprite.sprite.pixels[texY][texX] == '0')
+                        screen[screenY][screenX] = ' ';
+                }
+
             }
         }
     }
@@ -305,7 +158,10 @@ bool EnemyVision(float enemyX, float enemyY, float playerX, float playerY) {
 
     float distance = sqrt(dx * dx + dy * dy);
 
-    int steps = (int)(distance * 20);
+    int steps = static_cast<int>(distance * 20);
+
+    if (steps <= 0)
+        return true;
 
     float stepX = dx / steps;
     float stepY = dy / steps;
@@ -329,11 +185,8 @@ void UpdateFireballs(float dt) {
         if (e.type != EntityType::FIREBALL)
             continue;
 
-        float newX =
-            e.x + e.velocityX * dt;
-
-        float newY =
-            e.y + e.velocityY * dt;
+        float newX = e.x + e.velocityX * dt;
+        float newY = e.y + e.velocityY * dt;
 
         // Destroy the fireball when it hits a wall
         if (GetMapCell((int)newX, (int)newY) == '1') {
@@ -352,8 +205,14 @@ void UpdateFireballs(float dt) {
         float hitDistance = collisionRadius;
 
         if (dx * dx + dy * dy < hitDistance * hitDistance) {
-            int damage = RollDice(3, 7) + 7;
-            health -= damage;
+            const EntityDefinition* definition =
+                FindEntityDefinition(e.id);
+
+            if (definition) {
+                int damage = RollDice(definition->rangedAttack.damageDice, definition->rangedAttack.damageSides) + definition->rangedAttack.damageBonus;
+
+                health -= damage;
+            }
 
             e.lifeTimer = 0.0f;
         }
@@ -369,15 +228,20 @@ void UpdateFireballs(float dt) {
     );
 }
 
-void SpawnFireball(float startX, float startY, float targetX, float targetY) {
-    Entity fireball(EntityType::FIREBALL, startX, startY);
+void SpawnFireball(const Entity& enemy, float targetX, float targetY) {
+    const EntityDefinition* definition = FindEntityDefinition(enemy.id);
 
-    fireball.shape = fireBallSprite;
-    fireball.w = 16;
-    fireball.h = 16;
+    if (!definition)
+        return;
 
-    float dx = targetX - startX;
-    float dy = targetY - startY;
+    Entity fireball(EntityType::FIREBALL, enemy.x, enemy.y);
+
+    fireball.w = definition->rangedAttack.width;
+    fireball.h = definition->rangedAttack.height;
+    fireball.sprite = definition->rangedAttack.spriteData;
+
+    float dx = targetX - enemy.x;
+    float dy = targetY - enemy.y;
 
     float length = sqrtf(dx * dx + dy * dy);
 
@@ -386,13 +250,13 @@ void SpawnFireball(float startX, float startY, float targetX, float targetY) {
         dy /= length;
     }
 
-    const float fireballSpeed = 5.0f;
+    float speed = definition->rangedAttack.speed;
 
-    fireball.velocityX = dx * fireballSpeed;
-
-    fireball.velocityY = dy * fireballSpeed;
+    fireball.velocityX = dx * speed;
+    fireball.velocityY = dy * speed;
 
     fireball.lifeTimer = 5.0f;
+    fireball.id = enemy.id;
 
     entities.push_back(fireball);
 }
@@ -416,7 +280,7 @@ void UpdateIdle(Entity& e) {
     float distance = sqrtf(dx * dx + dy * dy);
 
     if (distance < enemyViewRange && EnemyVision(e.x, e.y, x, y)) {
-        e.state = EnemyState::CHASE;
+        SetEnemyState(e, EnemyState::CHASE);
         e.attackTimer = 0.f;
     }
 }
@@ -451,7 +315,7 @@ void MoveEnemy(Entity& e, float dt) {
     float playerDistance = sqrtf(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
     
     if (playerDistance <= meleeRange) {
-        e.state = EnemyState::ATTACK;
+        SetEnemyState(e, EnemyState::ATTACK);
         e.attackTimer = 0.0f;
         e.hasAttacked = false;
         e.flipSprite = false;
@@ -570,7 +434,7 @@ void MoveEnemy(Entity& e, float dt) {
     // Stuck recovery
     if (e.stuckTimer > 0.5f) {
         e.stuckTimer = 0.0f;
-        e.stateTimer = 1.0f; // Force the random fallback on the next update.
+        e.stateTimer = 1.0f; // Trigger random fallback on the next update.
     }
     else if (hitsEnemy) {
         float pushX = 0.0f;
@@ -623,8 +487,8 @@ void UpdateMeleeAttack(Entity& e, float dt) {
 
     float playerDistance = sqrtf(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
 
-    // The player moved away.
-    // Return to chasing and using fireballs.
+    // The player moved away
+    // Return to chasing and using fireballs
     if (playerDistance > meleeRange) {
         e.state = EnemyState::CHASE;
         e.attackTimer = 0.0f;
@@ -640,13 +504,11 @@ void UpdateMeleeAttack(Entity& e, float dt) {
     if (e.attackTimer >= 0.5f && !e.hasAttacked) {
         e.hasAttacked = true;
 
-        // Ranged enemies have weaker melee attacks than melee enemies.
-        if (e.enemyClass == EnemyClass::RANGED) {
-            int damage = RollDice(2, 5) + 2;
-            health -= damage;
-        }
-        else {
-            int damage = RollDice(3, 5) + 7;
+        const EntityDefinition* definition = FindEntityDefinition(e.id);
+
+        if (definition && definition->damageDice > 0 && definition->damageSides > 0) {
+            int damage = RollDice(definition->damageDice, definition->damageSides) + definition->damageBonus;
+
             health -= damage;
         }
     }
@@ -656,7 +518,7 @@ void UpdateMeleeAttack(Entity& e, float dt) {
         e.flipSprite = true;
     }
 
-    // Start another melee attack if the player is still close.
+    // Start another melee attack if the player is still close
     if (e.attackTimer >= 1.1f) {
         e.attackTimer = 0.0f;
         e.hasAttacked = false;
@@ -678,13 +540,13 @@ void UpdateRangedAttack(Entity& e, float dt) {
         e.attackTimer += dt;
 
         if (e.attackTimer >= fireCooldown) {
-            SpawnFireball(e.x, e.y, x, y);
+            SpawnFireball(e, x, y);
 
             e.attackTimer = 0.0f;
         }
     }
     else {
-        e.attackTimer = 0.0f; // fireball cooldown after losing sight.
+        e.attackTimer = 0.0f; // fireball cooldown after losing sight
     }
 }
 
@@ -711,6 +573,42 @@ void UpdateEnemies(float dt) {
         case EnemyState::ATTACK:
             UpdateMeleeAttack(e, dt);
             break;
+
+        case EnemyState::DEATH:
+            // Dead enemy does absolutely nothing
+            break;
         }
+    }
+}
+
+void SetEnemyState(Entity& e, EnemyState newState) {
+
+    const EntityDefinition* definition = FindEntityDefinition(e.id);
+
+    e.state = newState;
+
+    switch (newState) {
+    case EnemyState::IDLE:
+        e.sprite = definition->idle;
+        break;
+
+    case EnemyState::CHASE:
+        e.sprite = definition->chase;
+        break;
+
+    case EnemyState::ATTACK:
+        e.sprite = definition->attack;
+        break;
+
+    case EnemyState::DEATH:
+        e.sprite = definition->death;
+        e.velocityX = 0.0f;
+        e.velocityY = 0.0f;
+        e.flipSprite = false;
+        e.stateTimer = 0.0f;
+        e.attackTimer = 0.0f;
+        e.hasAttacked = false;
+        e.attackingFrame = false;
+        break;
     }
 }

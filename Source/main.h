@@ -10,9 +10,9 @@ extern float pi;
 extern float x;
 extern float y;
 extern float angle;
+
 extern int health;
 extern int ammo;
-
 extern int screenHeight;
 extern int screenWidth;
 
@@ -24,13 +24,6 @@ struct Map {
 };
 
 extern Map* currentMap;
-
-extern Map map1_struct;
-extern Map map2_struct;
-extern Map map3_struct;
-extern Map map4_struct;
-extern Map map5_struct;
-
 extern POINT lastMouse;
 
 enum class GameState {
@@ -40,3 +33,4 @@ enum class GameState {
 };
 
 extern GameState state;
+extern std::string currentLevelName;

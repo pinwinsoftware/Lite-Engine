@@ -13,18 +13,15 @@ char PausedMenu[3][28] = {
     "233333333333333333333333334",
 };
 
-void DrawPauseMenu()
-{
+void DrawPauseMenu() {
     const int menuWidth = 28;
     const int menuHeight = 3;
 
     int startX = (screenWidth - menuWidth) / 2;
     int startY = (screenHeight - menuHeight) / 2;
 
-    for (int menuY = 0; menuY < menuHeight; menuY++)
-    {
-        for (int menuX = 0; menuX < menuWidth; menuX++)
-        {
+    for (int menuY = 0; menuY < menuHeight; menuY++) {
+        for (int menuX = 0; menuX < menuWidth; menuX++) {
             int drawX = startX + menuX;
             int drawY = startY + menuY;
 
@@ -35,8 +32,7 @@ void DrawPauseMenu()
 
             char tile = PausedMenu[menuY][menuX];
 
-            switch (tile)
-            {
+            switch (tile) {
             case '2':
                 screen[drawY][drawX] = char(192);
                 break;

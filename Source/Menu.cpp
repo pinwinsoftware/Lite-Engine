@@ -37,16 +37,15 @@ void Menu() {
     if (GetAsyncKeyState(VK_RETURN) & 1) {
         switch (menuIndex) {
         case 0:
-            currentMap = &map1_struct;
+            currentLevelName = "MAP01";
+
             system("cls");
-            x = 3.5f;
-            y = 11.5f;
-            angle = 270.f;
-            ammo = 100;
-            health = 100;
+
             gameFailed = false;
-            LoadEntities();
-            state = GameState::RUNNING;
+
+            if (LoadLevel(currentLevelName)) {
+                state = GameState::RUNNING;
+            }
             break;
         case 2:
             system("cls");

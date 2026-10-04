@@ -5,8 +5,7 @@
 
 bool setHeight = false;
 
-void ResizeConsole(int width, int height)
-{
+void ResizeConsole(int width, int height) {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
     SMALL_RECT rect = { 0, 0, 1, 1 };

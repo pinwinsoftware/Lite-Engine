@@ -17,15 +17,13 @@ void DrawMap() {
             // Map
             int sx = startX + mx * tileWidth;
 
-            if (c == '1')
-            {
+            if (c == '1') {
                 screen[startY + my][sx] = char(219);
 
                 if (tileWidth == 2)
                     screen[startY + my][sx + 1] = char(219);
             }
-            else
-            {
+            else {
                 screen[startY + my][sx] = ' ';
 
                 if (tileWidth == 2)

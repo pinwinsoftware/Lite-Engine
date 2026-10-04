@@ -1,15 +1,7 @@
 #pragma once
 #include <vector>
-
-enum class EntityType {
-    ENEMY,
-    CORPSE,
-    FIREBALL,
-    COLLECTIBLE,
-    AMMO,
-    MEDKIT,
-    EXIT
-};
+#include "EntityType.h"
+#include "EntityDefinitions.h"
 
 enum class EnemyClass {
     MELEE,
@@ -19,7 +11,8 @@ enum class EnemyClass {
 enum class EnemyState {
     IDLE,
     CHASE,
-    ATTACK
+    ATTACK,
+    DEATH
 };
 
 struct Entity {
@@ -29,12 +22,14 @@ struct Entity {
     float y;
     float angle;
 
-    const char** shape = nullptr;
+    int id = 0;
+
+    EntitySprite sprite;
     int w = 0;
     int h = 0;
 
     float speed = 3.0f;
-    int health = 0.f;
+    int health = 0;
 
     EnemyClass enemyClass = EnemyClass::MELEE;
     EnemyState state = EnemyState::IDLE;
@@ -78,21 +73,11 @@ struct Entity {
 
 extern std::vector<Entity> entities;
 
-// Sprites
-extern const char* monsterSprite[16];
-extern const char* bigMonsterSprite[16];
-extern const char* fireBallSprite[16];
-extern const char* corpsesSprite[16];
-extern const char* ammoSprite[16];
-extern const char* medKitSprite[16];
-extern const char* coinSprite[10];
-extern const char* trollSprite[13];
-extern const char* exitSprite[5];
-
 // Entity updates
 void UpdateEnemies(float dt);
 void UpdateFireballs(float dt);
-void SpawnFireball(float startX, float startY, float targetX, float targetY);
+void SpawnFireball(const Entity& enemy, float targetX, float targetY);
+void SetEnemyState(Entity& e, EnemyState newState);
 
 // Sprite rendering
 void RenderSprite(

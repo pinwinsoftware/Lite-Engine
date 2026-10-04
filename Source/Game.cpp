@@ -1,8 +1,6 @@
 #include <iostream>
 #include <windows.h>
 #include <string>
-#include <cstring>
-#include <cmath>
 #include <vector>
 #include <algorithm>
 
@@ -11,6 +9,10 @@
 #include "Weapons.h"
 #include "Map.h"
 #include "PauseMenu.h"
+#include "EntityDefinitions.h"
+#include "LevelDefinitions.h"
+#include "WeaponsDefinitions.h"
+#include "MapLoader.h"
 
 std::vector<float> depthBuffer;
 
@@ -76,10 +78,28 @@ char GetMapCell(int x, int y) {
 
     char tile = currentMap->rows[y][x];
 
-    if (tile == '2' || tile == '3' || tile == '4' || tile == '6' || tile == '7')
+    if (tile >= '2' && tile <= '9')
         return ' ';
 
     return tile;
+}
+
+bool DefineExit(float playerX, float playerY) {
+    for (const Entity& e : entities) {
+        if (e.type != EntityType::EXIT)
+            continue;
+
+        float dx = playerX - e.x;
+        float dy = playerY - e.y;
+
+        const float exitRadius = 0.5f;
+
+        if (dx * dx + dy * dy < exitRadius * exitRadius) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 int RollDice(int amount, int sides) {
@@ -94,74 +114,39 @@ int RollDice(int amount, int sides) {
 
 void getMapEntities() {
     for (int y = 0; y < currentMap->height; y++) {
-        int rowLen = (int)currentMap->rows[y].size();
+        int rowLen = static_cast<int>(currentMap->rows[y].size());
+
         for (int x = 0; x < rowLen; x++) {
             char tile = currentMap->rows[y][x];
-            switch (tile) {
-            case '2':
-            {
-                Entity e(EntityType::ENEMY, x + 0.5f, y + 0.5f);
-                e.enemyClass = EnemyClass::MELEE;
-                e.shape = bigMonsterSprite;
-                e.w = 16;
-                e.h = 16;
-                e.speed = 3.f;
-                e.health = 100;
-                entities.push_back(e);
-                break;
-            }
-            case '3':
-            {
-                Entity e(EntityType::ENEMY, x + 0.5f, y + 0.5f);
-                e.enemyClass = EnemyClass::RANGED;
-                e.shape = monsterSprite;
-                e.w = 16;
-                e.h = 16;
-                e.speed = 1.5f;
-                e.health = 50;
-                entities.push_back(e);
-                break;
-            }
-            case '4':
-            {
-                Entity e(EntityType::ENEMY, x + 0.5f, y + 0.5f);
-                e.enemyClass = EnemyClass::MELEE;
-                e.shape = trollSprite;
-                e.w = 16;
-                e.h = 13;
-                e.speed = 3.f;
-                e.health = 500;
-                entities.push_back(e);
-                break;
-            }
-            case '5':
-            {
-                Entity e(EntityType::EXIT, x + 0.5f, y + 0.5f);
-                e.shape = exitSprite;
-                e.w = 26;
-                e.h = 5;
-                entities.push_back(e);
-                break;
-            }
-            case '6':
-            {
-                Entity e(EntityType::AMMO, x + 0.5f, y + 0.5f);
-                e.shape = ammoSprite;
-                e.w = 16;
-                e.h = 16;
-                entities.push_back(e);
-                break;
-            }
 
-            case '7':
-            {
-                Entity e(EntityType::MEDKIT, x + 0.5f, y + 0.5f);
-                e.shape = medKitSprite;
-                e.w = 16;
-                e.h = 16;
+            // detect enemies entities by id
+            if (tile >= '2' && tile <= '9') {
+                int enemyId = tile - '0';
+
+                const EntityDefinition* definition =
+                    FindEntityDefinition(enemyId);
+
+                if (!definition) {
+                    continue;
+                }
+
+                Entity e(definition->type, x + 0.5f, y + 0.5f);
+
+                e.id = enemyId;
+                e.sprite = definition->idle;
+
+                e.w = definition->width;
+                e.h = definition->height;
+
+                e.speed = definition->speed;
+                e.health = definition->health;
+
+                if (definition->ranged)
+                    e.enemyClass = EnemyClass::RANGED;
+                else
+                    e.enemyClass = EnemyClass::MELEE;
+
                 entities.push_back(e);
-                break;
-            }
             }
         }
     }
@@ -172,50 +157,32 @@ void LoadEntities() {
     getMapEntities();
 }
 
-void CollectItem(Entity& e)
-{
-    bool itemWasPickedUp = false;
+bool LoadLevel(const std::string& mapName) {
+    const LevelDefinition* definition =
+        FindLevelDefinition(mapName);
 
-    switch (e.type)
-    {
-    case EntityType::COLLECTIBLE:
-        coins++;
-        itemWasPickedUp = true;
-        break;
-
-    case EntityType::AMMO:
-        // Only pick up if player actually needs ammo
-        if (ammo < 100) {
-            ammo += 20;
-            if (ammo > 100) ammo = 100;
-            itemWasPickedUp = true;
-        }
-        break;
-
-    case EntityType::MEDKIT:
-        // Only pick up if player actually needs health
-        if (health < 100) {
-            health += 25;
-            if (health > 100) health = 100;
-            itemWasPickedUp = true;
-        }
-        break;
-
-    default:
-        return;
+    if (!definition) {
+        return false;
     }
 
-    // If the item wasn't actually consumed, leave it on the map
-    if (!itemWasPickedUp) {
-        return;
+    // Player starting data
+
+    x = definition->playerX;
+    y = definition->playerY;
+    angle = definition->playerAngle;
+
+    ammo = definition->playerAmmo;
+    health = definition->playerHealth;
+
+    currentLevelName = definition->mapName;
+
+    if (!LoadMapFromLED("LED/GAME.LED",definition->mapFile)) {
+        return false;
     }
 
-    for (auto it = entities.begin(); it != entities.end(); ++it) {
-        if (it->x == e.x && it->y == e.y) {
-            entities.erase(it);
-            break;
-        }
-    }
+    LoadEntities();
+
+    return true;
 }
 
 void Game() {
@@ -227,37 +194,29 @@ void Game() {
     totalEnemies = countEnemies(currentMap->rows);
     EnableMouse();
 
-    float fov = 60.0f;
+    const float fov = 60.0f;
 
-    if (depthBuffer.size() != screenWidth)
-    {
+    if (depthBuffer.size() != screenWidth) {
         depthBuffer.resize(screenWidth);
     }
 
     // mouse lock
     HWND gameWindow = GetForegroundWindow();
 
-    if (gameWindow != NULL) {
+    if (gameWindow != nullptr) {
         // Get the actual drawable area of the active console window
         RECT clientRect;
         GetClientRect(gameWindow, &clientRect);
 
-        int clientWidth =
-            clientRect.right - clientRect.left;
-
-        int clientHeight =
-            clientRect.bottom - clientRect.top;
-
-        const int gameWidth = screenWidth;
-        const int gameHeight = screenHeight;
+        int clientWidth = clientRect.right - clientRect.left;
+        int clientHeight = clientRect.bottom - clientRect.top;
 
         // Convert game character coordinates to pixels
-        float pixelsPerColumn = (float)clientWidth / gameWidth;
+        float pixelsPerColumn = static_cast<float>(clientWidth) / screenWidth;
+        float pixelsPerRow = static_cast<float>(clientHeight) / screenHeight;
 
-        float pixelsPerRow = (float)clientHeight / gameHeight;
-
-        int centerX = (int)((gameWidth / 2.0f) * pixelsPerColumn);
-        int centerY = (int)((gameHeight / 2.0f) * pixelsPerRow);
+        int centerX = (int)((screenWidth / 2.0f) * pixelsPerColumn);
+        int centerY = (int)((screenHeight / 2.0f) * pixelsPerRow);
 
         // Convert client coordinates to screen coordinates
         POINT center = { centerX, centerY };
@@ -291,8 +250,6 @@ void Game() {
         speed = speed * 2;
     }
 
-    int numRays = screenWidth;
-
     float moveX = cos(playerRad);
     float moveY = sin(playerRad);
 
@@ -301,13 +258,11 @@ void Game() {
         for (int x = 0; x < screenWidth; x++)
             screen[y][x] = ' ';
 
-    int prevCellX = -1;
-    int prevCellY = -1;
     int prevSide = -1;
 
     // raycasting 
-    for (int i = 0; i < numRays; i++) {
-        float rayAngle = (angle - fov / 2.0f) + ((float)i / numRays) * fov;
+    for (int i = 0; i < screenWidth; i++) {
+        float rayAngle = (angle - fov / 2.0f) + ((float)i / screenWidth) * fov;
         float rad = rayAngle * pi / 180.0f;
 
         float dirX = cos(rad);
@@ -416,8 +371,6 @@ void Game() {
             }
         }
 
-        prevCellX = currentCellX;
-        prevCellY = currentCellY;
         prevSide = side;
 
         // rendering hollow column
@@ -438,25 +391,14 @@ void Game() {
     }
 
     // Sort entities from farthest to nearest
-    std::stable_sort(
-        entities.begin(),
-        entities.end(),
-        [&](const Entity& a, const Entity& b)
-        {
-            float da =
-                (a.x - x) * (a.x - x) +
-                (a.y - y) * (a.y - y);
-
-            float db =
-                (b.x - x) * (b.x - x) +
-                (b.y - y) * (b.y - y);
-
+    std::stable_sort(entities.begin(), entities.end(), [&](const Entity& a, const Entity& b) {
+            float da = (a.x - x) * (a.x - x) + (a.y - y) * (a.y - y);
+            float db = (b.x - x) * (b.x - x) + (b.y - y) * (b.y - y);
             return da > db;
         });
 
     // Render entities after moving them
-    for (const auto& e : entities)
-    {
+    for (const auto& e : entities) {
         RenderSprite(e, x, y, playerRad, fov, screenWidth, screenHeight, depthBuffer, screen);
     }
 
@@ -495,7 +437,7 @@ void Game() {
     for (int i = 0; i < (int)enemiesInfo.size() && i + offset < screenWidth; i++)
         screen[0][i + offset] = enemiesInfo[i];
 
-    if (kills >= totalEnemies && currentMap == &map1_struct) {
+    if (kills >= totalEnemies) {
         for (int i = 0; i < (int)allEnemiesKilled.size() && i + offset < screenWidth; i++)
             screen[0][i + offset] = allEnemiesKilled[i];
     }
@@ -522,80 +464,90 @@ void Game() {
             dy -= moveX * speed;
         }
 
+        // Player X movement
+
         float newX = x + dx;
 
         char xTile = GetMapCell((int)newX, (int)y);
 
-        if (!PlayerCollidingWithEnemy(newX, y) && (xTile == ' ' || (xTile == '5'))) {
-            if (xTile == '5')
-                levelComplete = true;
-
+        if (!PlayerCollidingWithEnemy(newX, y) && xTile == ' ') {
             x = newX;
         }
+
+        // Player Y movement
 
         float newY = y + dy;
 
         char yTile = GetMapCell((int)x, (int)newY);
 
-        if (!PlayerCollidingWithEnemy(x, newY) && (yTile == ' ' || (yTile == '5'))) {
-            if (yTile == '5')
-                levelComplete = true;
-
+        if (!PlayerCollidingWithEnemy(x, newY) && yTile == ' ') {
             y = newY;
+        }
+
+        if (DefineExit(x, y)) {
+            levelComplete = true;
         }
 
         if (GetAsyncKeyState(VK_TAB) & 0x8000) {
             DrawMap();
         }
 
-        // Weapon switching
-        if (GetAsyncKeyState('1') & 1) {
-            currentWeapon = Weapon::KNIFE;
-        }
-
-        if (GetAsyncKeyState('2') & 1) {
-            if (ammo > 0)
-                currentWeapon = Weapon::GUN;
-        }
-
-        if (ammo <= 0) {
-            currentWeapon = Weapon::KNIFE;
-        }
-
-
-        // Attack
-        if ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) || (GetAsyncKeyState(VK_SPACE) & 0x8000)) {
-            if (shootTimer == 0) {
-                if (currentWeapon == Weapon::GUN) {
-                    if (ammo > 0) {
-                        Shoot();
-
-                        ammo--;
-
-                        GunFrame = 2;
-                        gunFrameTimer = 7;
-                    }
-                    else {
-                        currentWeapon = Weapon::KNIFE;
-                    }
-                }
-                else {
-                    KnifeAttack();
-
-                    GunFrame = 2;
-                    gunFrameTimer = 7;
-                }
-
-                shootTimer = 15;
+        // Weapon selection
+        for (int id = 1; id <= 9; ++id) {
+            if (GetAsyncKeyState('0' + id) & 1) {
+                SelectWeapon(id);
             }
         }
 
-        // cooldown
+        // Current weapon
+        const WeaponDefinition* weapon =
+            GetCurrentWeapon();
+
+        if (weapon && weapon->ranged && ammo <= 0) {
+            // Find the first non-ranged weapon.
+            for (int id = 1; id <= 9; ++id) {
+                const WeaponDefinition* fallback = FindWeaponDefinitionById(id);
+
+                if (fallback && !fallback->ranged) {
+                    SelectWeapon(id);
+                    weapon = GetCurrentWeapon();
+                    break;
+                }
+            }
+        }
+
+        // Attack
+        if ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) || (GetAsyncKeyState(VK_SPACE) & 0x8000)) {
+            if (shootTimer <= 0 && weapon != nullptr) {
+                
+                // Ranged weapons require ammo.
+                if (!weapon->ranged || ammo > 0) {
+                    Attack();
+
+                    if (weapon->ranged) {
+                        ammo--;
+                    }
+
+                    // Weapon animation.
+                    GunFrame = 2;
+                    gunFrameTimer = 7;
+
+                    // Speed is the weapon cooldown in seconds.
+                    // Convert seconds -> frames.
+                    shootTimer = (int)(weapon->speed * 1000.0f / 16.0f);
+
+                    if (shootTimer < 1)
+                        shootTimer = 1;
+                }
+            }
+        }
+
+        // Weapon cooldown
         if (shootTimer > 0) {
             shootTimer--;
         }
 
-
+        // Weapon animation
         if (gunFrameTimer > 0) {
             gunFrameTimer--;
 
@@ -612,12 +564,10 @@ void Game() {
 
             const float pickupRange = 0.5f;
 
-            if (dx * dx + dy * dy < pickupRange * pickupRange)
-            {
+            if (dx * dx + dy * dy < pickupRange * pickupRange) {
                 bool canPickUp = false;
 
-                switch (it->type)
-                {
+                switch (it->type) {
                 case EntityType::COLLECTIBLE:
                     // Coins can always be collected
                     coins++;
@@ -626,8 +576,7 @@ void Game() {
 
                 case EntityType::AMMO:
                     // Only collect ammo when ammo is below 100
-                    if (ammo < 100)
-                    {
+                    if (ammo < 100) {
                         ammo += 10;
 
                         if (ammo > 100)
@@ -639,8 +588,7 @@ void Game() {
 
                 case EntityType::MEDKIT:
                     // Only collect a medkit when health is below 100
-                    if (health < 100)
-                    {
+                    if (health < 100) {
                         health += 20;
 
                         if (health > 100)
@@ -655,8 +603,7 @@ void Game() {
                 }
 
                 // Remove the item only if it was actually collected
-                if (canPickUp)
-                {
+                if (canPickUp) {
                     it = entities.erase(it);
                     continue;
                 }
@@ -673,46 +620,31 @@ void Game() {
     }
 
     while (levelComplete) {
-        if (currentMap == &map1_struct) {
-            x = 15.f;
-            y = 3.5f;
-            angle = 180.f;
-            currentMap = &map2_struct;
-            kills = 0;
-            LoadEntities();
-            levelComplete = false;
-        }
-        else if (currentMap == &map2_struct) {
-            x = 2.f;
-            y = 2.5f;
-            angle = 0.f;
-            currentMap = &map3_struct;
-            kills = 0;
-            LoadEntities();
-            levelComplete = false;
-        }
-        else if (currentMap == &map3_struct) {
-            x = 9.5f;
-            y = 1.f;
-            angle = 90.f;
-            currentMap = &map4_struct;
-            kills = 0;
-            LoadEntities();
-            levelComplete = false;
-        }
-        else if (currentMap == &map4_struct) {
-            x = 11.5f;
-            y = 2.f;
-            angle = 90.f;
-            currentMap = &map5_struct;
-            kills = 0;
-            LoadEntities();
-            levelComplete = false;
-        }
-        else if (currentMap == &map5_struct) {
+        const LevelDefinition* currentLevel =
+            FindLevelDefinition(currentLevelName);
+
+        if (!currentLevel) {
             gameComplete = true;
             levelComplete = false;
+            break;
         }
+
+        // No Next = this is the final level
+        if (currentLevel->nextMap.empty()) {
+            gameComplete = true;
+            levelComplete = false;
+            break;
+        }
+
+        // Load the next level from GAME.LEM
+        if (!LoadLevel(currentLevel->nextMap)) {
+            gameComplete = true;
+            levelComplete = false;
+            break;
+        }
+
+        kills = 0;
+        levelComplete = false;
 
         break;
     }
@@ -740,20 +672,7 @@ void Game() {
     // render buffer
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-    if (currentWeapon == Weapon::GUN)
-    {
-        if (GunFrame == 1)
-            DrawGunToBuffer(Sprite["GunSprite1"]);
-        else
-            DrawGunToBuffer(Sprite["GunSprite2"]);
-    }
-    else
-    {
-        if (GunFrame == 1)
-            DrawGunToBuffer(Sprite["KnifeSprite1"]);
-        else
-            DrawGunToBuffer(Sprite["KnifeSprite2"]);
-    }
+    DrawCurrentWeapon();
 
     for (int y = 0; y < screenHeight; y++) {
         DWORD written;
