@@ -2,7 +2,7 @@
 
 Lite Engine - Lightweight First-Person Game Engine
 
-Version 0.1.8.0
+Version 0.1.8.1
 
 Copyright (C) 2026 Pinwin Software
 
