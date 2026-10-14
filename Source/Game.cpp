@@ -674,18 +674,56 @@ void Game() {
 
     DrawCurrentWeapon();
 
-    for (int y = 0; y < screenHeight; y++) {
-        DWORD written;
-        COORD pos = { 0, (SHORT)y };
+    // reuse frame buffer
+    static std::vector<CHAR_INFO> frameBuffer;
 
-        WriteConsoleOutputCharacterA(
-            hConsole,
-            screen[y].data(),
-            screenWidth,
-            pos,
-            &written
-        );
+    const size_t frameSize = static_cast<size_t>(screenWidth) * screenHeight;
+
+    if (frameBuffer.size() != frameSize) {
+        frameBuffer.resize(frameSize);
     }
+
+    // get current console attributes
+    CONSOLE_SCREEN_BUFFER_INFO consoleInfo{};
+    WORD attributes = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+
+    if (GetConsoleScreenBufferInfo(hConsole, &consoleInfo)) {
+        attributes = consoleInfo.wAttributes;
+    }
+
+    // copy screen into frame buffer
+    for (int row = 0; row < screenHeight; ++row) {
+        for (int col = 0; col < screenWidth; ++col) {
+            CHAR_INFO& cell = frameBuffer[static_cast<size_t>(row) * screenWidth + col];
+
+            cell.Char.AsciiChar = screen[row][col];
+            cell.Attributes = attributes;
+        }
+    }
+
+    // source buffer dimensions
+    COORD bufferSize = {
+        static_cast<SHORT>(screenWidth),
+        static_cast<SHORT>(screenHeight)
+    };
+
+    COORD bufferCoord = { 0, 0 };
+
+    // destination rectangle
+    SMALL_RECT writeRegion = {
+        0, 0, 
+        static_cast<SHORT>(screenWidth - 1),
+        static_cast<SHORT>(screenHeight - 1)
+    };
+
+    // render frame in one call
+    WriteConsoleOutputA(
+        hConsole,
+        frameBuffer.data(),
+        bufferSize,
+        bufferCoord,
+        &writeRegion
+    );
 
     Sleep(16);
 }
